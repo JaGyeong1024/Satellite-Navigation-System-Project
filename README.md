@@ -4,14 +4,17 @@
 
 브라우저(Kakao Map) 위에 두 차량의 궤적 / 차선 / 전방 판정 영역을 실시간 재생합니다.
 
+### 시현 영상
+https://github.com/user-attachments/assets/dd05fa46-7353-4b42-8c91-8b9af7d5d521
+
+### 데이터셋
 두 개의 데이터셋이 포함되어 있습니다.
 
 | Site | 위치 | 데이터 종류 | 길이 |
 |---|---|---|---|
-| **ochang** | 충북대학교 오창캠퍼스 C-TRACK 외곽순환도로 | u-blox ZED-F9P 듀얼 rover, NTRIP(NGII) — 실측 **DGPS** | ~32 s |
-| **cbnu** | 충북대학교 본캠퍼스 | 직접 측정 후 RTK Fixed 가정으로 재포맷한 차선변경 시나리오 | ~4 s |
+| **ochang** | 충북대학교 오창캠퍼스 C-TRACK 외곽순환도로 | u-blox ZED-F9P, NTRIP(NGII) — 실측 **DGPS** | ~32 s |
+| **cbnu** | 충북대학교 본캠퍼스 | u-blox ZED-F9P 이용 도보 측정 RTK-GPS 데이터 | ~4 s |
 
-오창은 RTK가 안 잡혔던 실측 데이터(`carrSoln=0`, hAcc≈1 m)입니다.
 
 ---
 
