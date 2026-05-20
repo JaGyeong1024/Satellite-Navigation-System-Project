@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Emergency Vehicle Same-Lane Warning</title>
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <style>
+    :root {
+      --bg: #0e1116;
+      --panel: #161b22;
+      --panel-soft: #1f2630;
+      --border: #2a313a;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --ok: #3fb950;
+      --warn: #f0883e;
+      --danger: #f85149;
+      --lane-r: #58a6ff;
+      --lane-l: #ff7b72;
+      --ego: #3fb950;
+      --emer: #f85149;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden;
+      font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
+      background: var(--bg); color: var(--text); letter-spacing: -0.01em; }
+    .app { position: relative; width: 100%; height: 100vh; height: 100dvh; }
+    #map { position: absolute; inset: 0; background: #0a0d12; }
+
+    .topbar {
+      position: absolute; left: 12px; right: 12px; top: 12px;
+      display: flex; gap: 8px; align-items: center;
+      pointer-events: none; z-index: 5;
+    }
+    .topbar .title {
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 14px;
+      pointer-events: auto;
+    }
+    .topbar .meta {
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 10px 14px; border-radius: 10px; font-size: 12px; color: var(--text-muted);
+      pointer-events: auto;
+    }
+    .topbar .spacer { flex: 1; }
+    .site-toggle {
+      display: inline-flex; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 4px; gap: 2px; pointer-events: auto;
+    }
+    .site-toggle a {
+      padding: 6px 12px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      color: var(--text-muted); text-decoration: none; line-height: 1;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+    .site-toggle a:hover { color: var(--text); }
+    .site-toggle a.active { background: var(--panel-soft); color: var(--text); }
+    .speed-mode-toggle {
+      position: absolute; right: 12px; top: 12px; z-index: 5;
+      display: inline-flex; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 8px; padding: 3px; gap: 2px;
+    }
+    .speed-mode-toggle button {
+      padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: 600;
+      color: var(--text-muted); background: transparent; border: none; cursor: pointer;
+      font-family: inherit; line-height: 1;
+    }
+    .speed-mode-toggle button:hover { color: var(--text); }
+    .speed-mode-toggle button.active { background: var(--panel-soft); color: var(--text); }
+
+    .alert {
+      position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
+      padding: 14px 20px; border-radius: 12px; font-weight: 700;
+      font-size: 16px; letter-spacing: -0.01em; z-index: 6;
+      background: var(--danger); color: white;
+      box-shadow: 0 4px 24px rgba(248, 81, 73, 0.4);
+      opacity: 0; transform: translateX(-50%) translateY(-20px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      pointer-events: none;
+      display: flex; gap: 8px; align-items: center;
+    }
+    .alert.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .alert .dot { width: 8px; height: 8px; border-radius: 50%; background: white;
+      animation: pulse 0.8s ease-in-out infinite alternate; }
+    @keyframes pulse { from { opacity: 0.4; } to { opacity: 1; } }
+
+    .panel {
+      position: absolute; left: 12px; bottom: 12px;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; min-width: 280px; max-width: 320px;
+      z-index: 5;
+    }
+    .panel .row { display: flex; justify-content: space-between; gap: 12px;
+      padding: 4px 0; font-size: 13px; }
+    .panel .row .k { color: var(--text-muted); }
+    .panel .row .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .panel h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .panel hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+    /* PiP camera — top of panel, card-width. aspect-ratio set per site from
+       the camera index (processing layer reports actual output dimensions).
+       Hidden by default; .has-cam class on .panel reveals it. */
+    .cam-frame {
+      display: none; position: relative; width: 100%;
+      aspect-ratio: 16 / 9; background: #000;
+      border-radius: 8px; overflow: hidden; margin-bottom: 12px;
+      border: 1px solid var(--border);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .panel.has-cam .cam-frame { display: block; }
+    .cam-frame img {
+      width: 100%; height: 100%; object-fit: cover;
+      display: block; opacity: 0; transition: opacity 0.15s ease;
+    }
+    .cam-frame img.loaded { opacity: 1; }
+    .cam-frame .cam-tag {
+      position: absolute; left: 8px; top: 8px;
+      background: rgba(0,0,0,0.55); color: white;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      padding: 3px 7px; border-radius: 4px;
+    }
+    /* Alert state: red border + glow on the camera, mirrors the top alert. */
+    .panel.alert-on .cam-frame {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 1px var(--danger), 0 0 16px rgba(248, 81, 73, 0.45);
+    }
+    .panel.alert-on .cam-tag { background: var(--danger); }
+
+    .controls {
+      position: absolute; right: 12px; bottom: 12px;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; min-width: 320px; z-index: 5;
+    }
+    .controls .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .controls .row:last-child { margin-bottom: 0; }
+    .controls button {
+      background: var(--panel-soft); border: 1px solid var(--border); color: var(--text);
+      padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+      font-family: inherit; min-width: 44px;
+    }
+    .controls button:hover { background: #2a313a; }
+    .controls button.active { background: var(--ok); border-color: var(--ok); color: #0a0d12; }
+    .controls input[type=range] { flex: 1; accent-color: var(--ok); }
+    .controls .time { font-variant-numeric: tabular-nums; font-size: 12px;
+      color: var(--text-muted); min-width: 56px; text-align: right; }
+
+
+    .marker {
+      position: absolute; transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    /* Sizes driven by --marker-px / --marker-label-px set per site from frames.json */
+    .marker .body {
+      width: var(--marker-px, 14px); height: var(--marker-px, 14px);
+      border-radius: 50%; border: 2px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.55);
+    }
+    .marker .label {
+      position: absolute; top: calc(var(--marker-px, 14px) + 4px);
+      left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.78); color: white;
+      font-size: var(--marker-label-px, 10px);
+      padding: 2px 6px; border-radius: 3px; white-space: nowrap;
+      font-weight: 600; letter-spacing: 0.02em;
+    }
+    .marker .arrow { position: absolute; top: 50%; left: 50%; width: 0; height: 0;
+      transform-origin: center 18px;
+      border-left: 6px solid transparent; border-right: 6px solid transparent;
+      border-bottom: 16px solid currentColor;
+      margin-left: -6px; margin-top: -24px;
+    }
+    .marker.ego .body { background: var(--ego); color: var(--ego); }
+    .marker.emer .body { background: var(--emer); color: var(--emer); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="map"></div>
+
+    <div class="topbar">
+      <div class="title">🚨 Emergency Vehicle Same-Lane Warning</div>
+      <div class="meta" id="meta-site">—</div>
+      <div class="site-toggle" id="site-toggle"></div>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="alert" id="alert">
+      <span class="dot"></span>
+      <span id="alert-text">EMERGENCY VEHICLE IN SAME LANE</span>
+    </div>
+
+    <div class="speed-mode-toggle" id="speed-mode-toggle">
+      <button data-mode="real" class="active">기본 속도</button>
+      <button data-mode="vehicle">차량 속도</button>
+    </div>
+
+
+    <div class="panel" id="panel">
+      <div class="cam-frame" id="cam-frame">
+        <img id="cam-img" alt="" />
+        <div class="cam-tag">EGO CAM</div>
+      </div>
+      <h3>Ego</h3>
+      <div class="row"><span class="k">Lane</span><span class="v" id="ego-lane">—</span></div>
+      <div class="row"><span class="k">Speed</span><span class="v" id="ego-speed">—</span></div>
+      <hr>
+      <h3>Emergency</h3>
+      <div class="row"><span class="k">Lane</span><span class="v" id="emer-lane">—</span></div>
+      <div class="row"><span class="k">Speed</span><span class="v" id="emer-speed">—</span></div>
+    </div>
+
+    <div class="controls">
+      <div class="row">
+        <button id="btn-play">▶ Play</button>
+        <button id="btn-follow" class="active">📍 Follow</button>
+        <span class="time" id="time-disp">0.0 / 0.0s</span>
+      </div>
+      <div class="row">
+        <input type="range" id="slider" min="0" max="0" step="1" value="0" />
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    document.write('<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=' + window.KAKAO_APP_KEY + '"><\/script>');
+  </script>
+  <script>
+  (async function () {
+    // ----- site resolution -----
+    // URL ?site=<id> wins; otherwise fall back to sites.json default; otherwise legacy "web/".
+    const url = new URL(window.location.href);
+    const requestedSite = url.searchParams.get('site');
+    let sitesIndex = null;
+    try {
+      sitesIndex = await fetch('web/sites.json').then(r => r.ok ? r.json() : null);
+    } catch (_) { /* legacy single-site mode */ }
+
+    let basePath = 'web';   // legacy default
+    let activeSiteId = null;
+    if (sitesIndex) {
+      const wanted = requestedSite || sitesIndex.default;
+      const entry = sitesIndex.sites.find(s => s.id === wanted) || sitesIndex.sites[0];
+      if (entry) {
+        basePath = `web/${entry.path}`;
+        activeSiteId = entry.id;
+      }
+      // Render site-toggle chips
+      const tg = document.getElementById('site-toggle');
+      sitesIndex.sites.forEach(s => {
+        const a = document.createElement('a');
+        const u = new URL(window.location.href);
+        u.searchParams.set('site', s.id);
+        a.href = u.toString();
+        a.textContent = s.label;
+        a.title = s.label_full;
+        if (s.id === activeSiteId) a.classList.add('active');
+        if (!s.ready) { a.style.opacity = 0.4; a.title += ' (not built yet)'; }
+        tg.appendChild(a);
+      });
+    }
+
+    const [lanesData, framesData, camIndex] = await Promise.all([
+      fetch(`${basePath}/lanes.json`).then(r => r.json()),
+      fetch(`${basePath}/frames.json`).then(r => r.json()),
+      // Camera index is optional — sites without camera (cbnu) just skip the PiP.
+      fetch(`${basePath}/ego_camera_index.json`)
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+    const frames = framesData.frames;
+    const N = frames.length;
+    const panelEl = document.getElementById('panel');
+    const camImg = document.getElementById('cam-img');
+    const camFrames = camIndex?.frames || null;
+    if (camFrames && camFrames.length) {
+      panelEl.classList.add('has-cam');
+      camImg.addEventListener('load', () => camImg.classList.add('loaded'));
+      camImg.addEventListener('error', () => camImg.classList.remove('loaded'));
+      // Match container aspect to actual processed image — no object-fit crop.
+      if (camIndex.output_width && camIndex.output_height) {
+        document.getElementById('cam-frame').style.aspectRatio =
+          `${camIndex.output_width} / ${camIndex.output_height}`;
+      }
+    }
+
+    // Binary search: nearest camera frame for scenario time t (seconds).
+    function camFileAt(t) {
+      if (!camFrames || !camFrames.length) return null;
+      let lo = 0, hi = camFrames.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (camFrames[mid].t < t) lo = mid + 1; else hi = mid;
+      }
+      // Pick the closer of lo-1 and lo
+      if (lo > 0 && (t - camFrames[lo - 1].t) < (camFrames[lo].t - t)) lo = lo - 1;
+      return camFrames[lo].file;
+    }
+    let lastCamFile = null;
+
+    document.getElementById('meta-site').textContent = framesData.site;
+
+    // Site-driven marker sizing (single source: frames.json from pipeline).
+    if (framesData.marker_px) {
+      document.documentElement.style.setProperty('--marker-px', `${framesData.marker_px}px`);
+    }
+    if (framesData.marker_label_px) {
+      document.documentElement.style.setProperty('--marker-label-px', `${framesData.marker_label_px}px`);
+    }
+
+    // Map init — start at Kakao's max zoom level (1).
+    const map = new kakao.maps.Map(document.getElementById('map'), {
+      center: new kakao.maps.LatLng(frames[0].ego.lat, frames[0].ego.lon),
+      level: 1,
+    });
+
+    // Trim a polyline by N meters from selected ends. Used to pull centerlines
+    // back from DEAD ENDS only (junctions stay connected).
+    function shrinkPolyline(pts, mEach, trimStart, trimEnd) {
+      if (!pts || pts.length < 2) return pts;
+      const lat0 = pts[0][0];
+      const M_PER_DEG_LAT = 111000;
+      const M_PER_DEG_LON = 89000 * Math.cos(lat0 * Math.PI / 180);
+      const work = pts.map(p => [p[0], p[1]]);
+      function trimFrom(side) {
+        let budget = mEach;
+        while (work.length >= 2 && budget > 0) {
+          const i = side === 'start' ? 0 : work.length - 1;
+          const j = side === 'start' ? 1 : work.length - 2;
+          const dx = (work[j][1] - work[i][1]) * M_PER_DEG_LON;
+          const dy = (work[j][0] - work[i][0]) * M_PER_DEG_LAT;
+          const L = Math.hypot(dx, dy);
+          if (L > budget) {
+            const u = budget / L;
+            work[i] = [
+              work[i][0] + u * (work[j][0] - work[i][0]),
+              work[i][1] + u * (work[j][1] - work[i][1]),
+            ];
+            budget = 0;
+          } else {
+            if (side === 'start') work.shift(); else work.pop();
+            budget -= L;
+          }
+        }
+      }
+      if (trimStart) trimFrom('start');
+      if (trimEnd) trimFrom('end');
+      return work.length >= 2 ? work : pts;
+    }
+
+    // Build a junction lookup: any endpoint shared across 2+ roads = junction.
+    // Junction endpoints stay full-length so roads visually connect.
+    const endpointCount = new Map();
+    const keyOf = (p) => `${p[0].toFixed(5)},${p[1].toFixed(5)}`;
+    (lanesData.roads || []).forEach(road => {
+      const pts = road.centerline_latlng;
+      if (!pts || pts.length < 2) return;
+      [pts[0], pts[pts.length - 1]].forEach(ep => {
+        const k = keyOf(ep);
+        endpointCount.set(k, (endpointCount.get(k) || 0) + 1);
+      });
+    });
+    const isJunction = (p) => (endpointCount.get(keyOf(p)) || 0) >= 2;
+
+    // Road centerlines — yellow line per road. Trim ONLY dead-end sides so
+    // hand-clicked overshoot doesn't show as 삐죽, while junctions stay joined.
+    (lanesData.roads || []).forEach(road => {
+      const pts = road.centerline_latlng;
+      if (!pts || pts.length < 2) return;
+      const trimmed = shrinkPolyline(
+        pts, 1.5,
+        !isJunction(pts[0]),
+        !isJunction(pts[pts.length - 1]),
+      );
+      new kakao.maps.Polyline({
+        map, path: trimmed.map(p => new kakao.maps.LatLng(p[0], p[1])),
+        strokeColor: '#ffd700', strokeWeight: 3, strokeOpacity: 0.85, strokeStyle: 'solid',
+      });
+    });
+
+    // Future-path bands — narrow lane-aligned predicted trajectory, no border.
+    const egoFuture = new kakao.maps.Polygon({
+      map, path: (frames[0].ego_future_band_latlng || [])
+        .map(p => new kakao.maps.LatLng(p[0], p[1])),
+      strokeWeight: 0, strokeOpacity: 0,
+      fillColor: '#3fb950', fillOpacity: 0.45,
+      zIndex: 8,
+    });
+    const emergFuture = new kakao.maps.Polygon({
+      map, path: (frames[0].emerg_future_band_latlng || [])
+        .map(p => new kakao.maps.LatLng(p[0], p[1])),
+      strokeWeight: 0, strokeOpacity: 0,
+      fillColor: '#f85149', fillOpacity: 0.45,
+      zIndex: 8,
+    });
+
+    // Ego + emergency custom overlays
+    function makeMarkerOverlay(cls) {
+      const el = document.createElement('div');
+      el.className = `marker ${cls}`;
+      el.innerHTML = `<div class="body"></div><div class="label">${cls === 'ego' ? 'EGO' : 'EMER'}</div>`;
+      return new kakao.maps.CustomOverlay({
+        map,
+        position: new kakao.maps.LatLng(frames[0].ego.lat, frames[0].ego.lon),
+        content: el, xAnchor: 0.5, yAnchor: 0.5, zIndex: 10,
+      });
+    }
+    const egoMarker = makeMarkerOverlay('ego');
+    const emerMarker = makeMarkerOverlay('emer');
+
+    // Connector line between ego and emergency (helpful visual)
+    const connector = new kakao.maps.Polyline({
+      map, path: [
+        new kakao.maps.LatLng(frames[0].ego.lat, frames[0].ego.lon),
+        new kakao.maps.LatLng(frames[0].emergency.lat, frames[0].emergency.lon),
+      ],
+      strokeColor: '#8b949e', strokeWeight: 1, strokeOpacity: 0.6,
+      strokeStyle: 'dash',
+    });
+
+    // ----- playback -----
+    const slider = document.getElementById('slider');
+    slider.max = N - 1;
+    const btnPlay = document.getElementById('btn-play');
+    const timeDisp = document.getElementById('time-disp');
+    const alertEl = document.getElementById('alert');
+    const els = {
+      egoLane:  document.getElementById('ego-lane'),
+      egoSpeed: document.getElementById('ego-speed'),
+      emerLane: document.getElementById('emer-lane'),
+      emerSpeed:document.getElementById('emer-speed'),
+    };
+
+    let idx = 0;
+    let playing = false;
+    let lastTs = 0;
+    let follow = true;
+
+    // Speed display mode: two independent multipliers from site config.
+    // - real:    stored × speed_real_factor    (true physical speed)
+    // - vehicle: stored × speed_vehicle_factor (demo-pace "vehicle" speed)
+    // For ochang real=1.0 vehicle=3.5 (14→50 km/h demo).
+    // For cbnu  real=0.1 vehicle=1.0 (5↔50 km/h).
+    let speedMode = 'real';
+    const SPEED_REAL_FACTOR    = framesData.speed_real_factor    || 1.0;
+    const SPEED_VEHICLE_FACTOR = framesData.speed_vehicle_factor || 1.0;
+    function speedDisplayMul() {
+      return speedMode === 'real' ? SPEED_REAL_FACTOR : SPEED_VEHICLE_FACTOR;
+    }
+    document.querySelectorAll('#speed-mode-toggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        speedMode = btn.dataset.mode;
+        document.querySelectorAll('#speed-mode-toggle button').forEach(x =>
+          x.classList.toggle('active', x === btn));
+        render(idx);   // immediate re-render of current frame (fractional ok)
+      });
+    });
+
+    function render(idxFloat) {
+      // Fractional index → interpolate marker positions between adjacent frames.
+      // Keeps motion smooth when mode_factor slows playback below the 10 Hz tick
+      // (e.g., CBNU 실제 mode at 0.1× would otherwise jump every real second).
+      const i0 = Math.floor(idxFloat);
+      const i1 = Math.min(i0 + 1, N - 1);
+      const u = idxFloat - i0;
+      const f = frames[i0];
+      const fn = frames[i1];
+      const lerp = (a, b) => a + u * (b - a);
+      const egoLat = lerp(f.ego.lat, fn.ego.lat);
+      const egoLon = lerp(f.ego.lon, fn.ego.lon);
+      const emrLat = lerp(f.emergency.lat, fn.emergency.lat);
+      const emrLon = lerp(f.emergency.lon, fn.emergency.lon);
+      egoMarker.setPosition(new kakao.maps.LatLng(egoLat, egoLon));
+      emerMarker.setPosition(new kakao.maps.LatLng(emrLat, emrLon));
+      // Continuous follow: setCenter (instant) instead of panTo (animated).
+      // panTo restarts a smooth animation each render → at 60fps the map
+      // never catches up to the moving markers. setCenter snaps in lock-step.
+      if (follow) {
+        map.setCenter(new kakao.maps.LatLng(
+          (egoLat + emrLat) / 2,
+          (egoLon + emrLon) / 2,
+        ));
+      }
+
+      // Future-path bands
+      egoFuture.setPath((f.ego_future_band_latlng || [])
+        .map(p => new kakao.maps.LatLng(p[0], p[1])));
+      emergFuture.setPath((f.emerg_future_band_latlng || [])
+        .map(p => new kakao.maps.LatLng(p[0], p[1])));
+
+
+      // Connector (uses the same interpolated positions as markers).
+      connector.setPath([
+        new kakao.maps.LatLng(egoLat, egoLon),
+        new kakao.maps.LatLng(emrLat, emrLon),
+      ]);
+
+      alertEl.classList.toggle('on', f.same_lane_alert);
+      panelEl.classList.toggle('alert-on', f.same_lane_alert);
+      document.getElementById('alert-text').textContent =
+        'EMERGENCY VEHICLE BEHIND IN SAME LANE';
+
+      // Camera frame — only set src when the closest file changes to avoid
+      // hammering the browser. Browser HTTP cache handles repeat hits.
+      if (camFrames) {
+        const file = camFileAt(f.t);
+        if (file && file !== lastCamFile) {
+          camImg.src = `${basePath}/${file}`;
+          lastCamFile = file;
+        }
+      }
+
+      // panel text — Lane + Speed only (참고용)
+      const sMul = speedDisplayMul();
+      els.egoLane.textContent = `${f.ego.lane}`;
+      els.egoSpeed.textContent = `${(f.ego.speed * 3.6 * sMul).toFixed(1)} km/h`;
+      els.emerLane.textContent = `${f.emergency.lane}`;
+      els.emerSpeed.textContent = `${(f.emergency.speed * 3.6 * sMul).toFixed(1)} km/h`;
+
+      // Show wall-clock time at 1× playback (= scenario time / mode multiplier).
+      // CBNU real: 4.2s scenario → 42s wall-clock. Ochang vehicle: 32s → ~9s.
+      const tCur   = f.t / sMul;
+      const tTotal = framesData.duration_s / sMul;
+      timeDisp.textContent = `${tCur.toFixed(1)} / ${tTotal.toFixed(1)}s`;
+      slider.value = i0;
+    }
+
+    function tick(ts) {
+      if (!playing) return;
+      const dt = lastTs ? (ts - lastTs) / 1000 : 0;
+      lastTs = ts;
+      // mode multiplier IS the playback rate — marker motion + displayed
+      // speed + wall-clock time all derive from one factor.
+      const step = dt * framesData.tick_hz * speedDisplayMul();
+      idx = (idx + step) % N;
+      render(idx);
+      requestAnimationFrame(tick);
+    }
+
+    btnPlay.addEventListener('click', () => {
+      playing = !playing;
+      btnPlay.textContent = playing ? '⏸ Pause' : '▶ Play';
+      if (playing) { lastTs = 0; requestAnimationFrame(tick); }
+    });
+
+    slider.addEventListener('input', e => {
+      idx = parseInt(e.target.value, 10);
+      render(idx);
+    });
+
+    // Follow toggle: when active, every render() locks the map center to
+    // the ego/emer midpoint. Click to toggle; if paused, an immediate
+    // re-render syncs the map without waiting for the next play tick.
+    document.getElementById('btn-follow').addEventListener('click', e => {
+      follow = !follow;
+      e.target.classList.toggle('active', follow);
+      if (follow) render(idx);
+    });
+
+    render(0);
+  })();
+  </script>
+</body>
+</html>

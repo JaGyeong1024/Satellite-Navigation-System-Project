@@ -1,0 +1,19 @@
+{
+  "default": "ochang",
+  "sites": [
+    {
+      "id": "ochang",
+      "label": "오창",
+      "label_full": "충북대학교 오창캠퍼스 C-TRACK 외곽순환도로",
+      "path": "sites/ochang",
+      "ready": true
+    },
+    {
+      "id": "cbnu",
+      "label": "충북대",
+      "label_full": "충북대학교 본캠퍼스",
+      "path": "sites/cbnu",
+      "ready": true
+    }
+  ]
+}

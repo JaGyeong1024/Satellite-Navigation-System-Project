@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trip Editor</title>
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <style>
+    :root {
+      --bg: #0e1116; --panel: #161b22; --panel-soft: #1f2630;
+      --border: #2a313a; --text: #e6edf3; --muted: #8b949e;
+      --ok: #3fb950; --warn: #f0883e; --danger: #f85149;
+      --bag1: #ff7b72; --bag2: #58a6ff;
+      --lane-r: #58a6ff; --lane-l: #ff7b72;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%;
+      font-family: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+      background: var(--bg); color: var(--text); letter-spacing: -0.01em; }
+    .app { display: grid; grid-template-rows: 48px 1fr; height: 100vh; height: 100dvh; }
+    header {
+      display: flex; align-items: center; gap: 12px; padding: 0 16px;
+      background: var(--panel); border-bottom: 1px solid var(--border);
+    }
+    header h1 { margin: 0; font-size: 14px; font-weight: 600; }
+    header .meta { font-size: 12px; color: var(--muted); }
+    header .spacer { flex: 1; }
+    header button {
+      background: var(--ok); border: none; color: #0a0d12; padding: 6px 12px;
+      border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit;
+    }
+    header button.secondary { background: var(--panel-soft); color: var(--text);
+      border: 1px solid var(--border); }
+    header button:hover { filter: brightness(1.1); }
+    .site-toggle { display: inline-flex; background: var(--panel-soft); border: 1px solid var(--border);
+      border-radius: 8px; padding: 3px; gap: 2px; }
+    .site-toggle a { padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: 600;
+      color: var(--muted); text-decoration: none; line-height: 1; }
+    .site-toggle a:hover { color: var(--text); }
+    .site-toggle a.active { background: var(--bg); color: var(--text); }
+
+    main { display: grid; grid-template-columns: 1fr 480px; height: 100%; min-height: 0; }
+    #map { background: #0a0d12; }
+    aside { background: var(--panel); border-left: 1px solid var(--border);
+      overflow-y: auto; padding: 16px; }
+
+    .trip-card {
+      background: var(--panel-soft); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px; margin-bottom: 14px;
+    }
+    .trip-card h2 { margin: 0 0 6px; font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; gap: 8px; }
+    .trip-card h2 .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .trip-card.bag1 h2 .dot { background: var(--bag1); }
+    .trip-card.bag2 h2 .dot { background: var(--bag2); }
+    .trip-card .submeta { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+
+    canvas.speed-plot {
+      width: 100%; height: 100px; display: block;
+      background: #0a0d12; border-radius: 6px; cursor: crosshair;
+    }
+    .slider-row { display: flex; align-items: center; gap: 8px; margin-top: 8px;
+      font-size: 12px; }
+    .slider-row label { color: var(--muted); width: 36px; }
+    .slider-row input[type=range] { flex: 1; accent-color: var(--ok); }
+    .slider-row .val { font-variant-numeric: tabular-nums; min-width: 56px; text-align: right; }
+
+    .overrides { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .overrides .title { display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em; }
+    .overrides .title button { background: transparent; border: 1px solid var(--border);
+      color: var(--text); font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
+      font-family: inherit; }
+    .overrides .ov-row { display: grid; grid-template-columns: 1fr 1fr auto auto;
+      gap: 6px; align-items: center; margin-top: 6px; font-size: 12px; }
+    .overrides .ov-row input, .overrides .ov-row select {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 12px;
+    }
+    .overrides .ov-row button.del {
+      background: transparent; border: 1px solid var(--border); color: var(--danger);
+      padding: 2px 6px; border-radius: 4px; cursor: pointer; font-family: inherit;
+    }
+    button.rs {
+      background: var(--panel-soft); border: 1px solid var(--border); color: var(--text);
+      padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px;
+      font-family: inherit;
+    }
+    button.rs:hover { background: #2a313a; }
+    button.rs.active { background: var(--ok); border-color: var(--ok); color: #0a0d12; }
+    #card-road input[type=number], #card-road select {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 3px 6px; border-radius: 4px; font-family: inherit; font-size: 12px;
+    }
+    #card-road label { color: var(--muted); }
+    .legend { display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+      margin-right: 4px; vertical-align: -2px; }
+
+    #json-modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      z-index: 100; align-items: center; justify-content: center; padding: 24px;
+    }
+    #json-modal.on { display: flex; }
+    #json-modal .box { background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; width: 100%; max-width: 720px; }
+    #json-modal textarea { width: 100%; height: 320px; background: var(--bg);
+      color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px; font-family: ui-monospace, monospace; font-size: 12px; }
+    #json-modal .actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+    #json-modal button { background: var(--panel-soft); border: 1px solid var(--border);
+      color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>📐 Trip Editor</h1>
+      <span class="meta" id="meta">—</span>
+      <span class="site-toggle" id="site-toggle"></span>
+      <span class="spacer"></span>
+      <button class="secondary" id="btn-show">📝 Show JSON</button>
+      <button class="secondary" id="btn-copy">📋 Copy to clipboard</button>
+      <button id="btn-save">💾 Download final.json</button>
+    </header>
+
+    <main>
+      <div id="map"></div>
+      <aside>
+        <div class="trip-card" id="card-road">
+          <h2><span class="dot" style="background:#ffd700"></span>🛣 Road setup</h2>
+          <div class="submeta">click 2 points on satellite to define road centerline</div>
+          <div style="display:flex;gap:6px;margin:8px 0;flex-wrap:wrap;">
+            <button id="btn-sat" class="rs">🛰 Satellite</button>
+            <button id="btn-pick" class="rs">📍 Pick points</button>
+            <button id="btn-newroad" class="rs">✂ New road</button>
+            <button id="btn-clear" class="rs">Clear all</button>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">
+            click to add points · drag marker to move · right-click marker to delete · ✂ New road for branches
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">
+            all roads contribute equally to lane assignment and bias
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;font-size:12px;margin:6px 0;">
+            <label>lane width</label>
+            <input type="number" id="in-lw" value="3.5" step="0.1" min="2" max="6" style="width:60px"> m
+          </div>
+          <div id="road-status" style="font-size:11px;color:var(--muted);">no road points set</div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:8px 0;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Bias correction</div>
+          <div style="display:flex;gap:6px;align-items:center;font-size:12px;margin-top:6px;">
+            <label>dx east</label>
+            <input type="number" id="in-dx" value="0" step="0.01" style="width:80px"> m
+            <label style="margin-left:8px">dy north</label>
+            <input type="number" id="in-dy" value="0" step="0.01" style="width:80px"> m
+          </div>
+          <div id="bias-status" style="font-size:11px;color:var(--muted);margin-top:6px;">bias = (0, 0)</div>
+        </div>
+
+        <div class="trip-card bag1" id="card-bag1">
+          <h2><span class="dot"></span> bag1 — Emergency vehicle</h2>
+          <div class="submeta" id="meta-bag1">—</div>
+          <canvas class="speed-plot" data-trip="bag1" width="600" height="100"></canvas>
+          <div class="legend">
+            <span><span class="swatch" style="background:#3fb950"></span>trim window</span>
+            <span><span class="swatch" style="background:#58a6ff;opacity:0.4"></span>override → R</span>
+            <span><span class="swatch" style="background:#ff7b72;opacity:0.4"></span>override → L</span>
+            <span style="border-left:2px dashed #f0883e;padding-left:6px">auto turnaround</span>
+          </div>
+          <div class="slider-row"><label>start</label>
+            <input type="range" data-trip="bag1" data-edge="start" min="0" max="1" step="0.1" value="0">
+            <span class="val" data-val="bag1-start">0.0s</span>
+          </div>
+          <div class="slider-row"><label>end</label>
+            <input type="range" data-trip="bag1" data-edge="end" min="0" max="1" step="0.1" value="0">
+            <span class="val" data-val="bag1-end">0.0s</span>
+          </div>
+          <div class="overrides">
+            <div class="title">Lane overrides <button data-add="bag1">+ add</button></div>
+            <div data-ov-list="bag1"></div>
+          </div>
+        </div>
+
+        <div class="trip-card bag2" id="card-bag2">
+          <h2><span class="dot"></span> bag2 — Ego vehicle</h2>
+          <div class="submeta" id="meta-bag2">—</div>
+          <canvas class="speed-plot" data-trip="bag2" width="600" height="100"></canvas>
+          <div class="slider-row"><label>start</label>
+            <input type="range" data-trip="bag2" data-edge="start" min="0" max="1" step="0.1" value="0">
+            <span class="val" data-val="bag2-start">0.0s</span>
+          </div>
+          <div class="slider-row"><label>end</label>
+            <input type="range" data-trip="bag2" data-edge="end" min="0" max="1" step="0.1" value="0">
+            <span class="val" data-val="bag2-end">0.0s</span>
+          </div>
+          <div class="overrides">
+            <div class="title">Lane overrides <button data-add="bag2">+ add</button></div>
+            <div data-ov-list="bag2"></div>
+          </div>
+        </div>
+
+        <div id="save-hint" style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.5">
+          저장 후 → 사이트 경로에 배치 → <code>python3 pipeline.py --site &lt;id&gt;</code> 재실행.
+          빈 필드는 자동값 사용.
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="json-modal"><div class="box">
+    <textarea id="json-text" readonly></textarea>
+    <div class="actions">
+      <button id="json-copy">Copy</button>
+      <button id="json-close">Close</button>
+    </div>
+  </div></div>
+
+  <script src="config.js"></script>
+  <script>
+    document.write('<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=' + window.KAKAO_APP_KEY + '"><\/script>');
+  </script>
+  <script>
+  (async function () {
+    // ----- site resolution (same scheme as nav.html) -----
+    const url = new URL(window.location.href);
+    const requestedSite = url.searchParams.get('site');
+    let sitesIndex = null;
+    try {
+      sitesIndex = await fetch('web/sites.json').then(r => r.ok ? r.json() : null);
+    } catch (_) {}
+
+    let basePath = 'web';
+    let activeSite = null;
+    if (sitesIndex) {
+      const wanted = requestedSite || sitesIndex.default;
+      const entry = sitesIndex.sites.find(s => s.id === wanted) || sitesIndex.sites[0];
+      if (entry) { basePath = `web/${entry.path}`; activeSite = entry; }
+      const tg = document.getElementById('site-toggle');
+      sitesIndex.sites.forEach(s => {
+        const a = document.createElement('a');
+        const u = new URL(window.location.href);
+        u.searchParams.set('site', s.id);
+        a.href = u.toString();
+        a.textContent = s.label;
+        a.title = s.label_full;
+        if (s.id === activeSite?.id) a.classList.add('active');
+        tg.appendChild(a);
+      });
+    }
+    window.__site = activeSite;   // used by save handler for filename
+
+    const raw = await fetch(`${basePath}/raw_trips.json`).then(r => r.json());
+    const state = {
+      bag1: { trim: { start_s: null, end_s: null }, overrides: [] },
+      bag2: { trim: { start_s: null, end_s: null }, overrides: [] },
+    };
+    const roadSetup = {
+      roads: [{ points: [] }],
+      active: 0,
+      lane_width_m: 3.5,
+      bias_m: { dx_east: 0, dy_north: 0 },
+    };
+    let pickMode = false;
+    let satMode = false;
+    document.getElementById('meta').textContent =
+      `bag1 ${raw.bag1.duration_s.toFixed(1)}s · bag2 ${raw.bag2.duration_s.toFixed(1)}s`;
+
+    // ---- map ----
+    const allLat = [...raw.bag1.data.lat, ...raw.bag2.data.lat];
+    const allLng = [...raw.bag1.data.lon, ...raw.bag2.data.lon];
+    const ctr = [allLat.reduce((a,b)=>a+b,0)/allLat.length, allLng.reduce((a,b)=>a+b,0)/allLng.length];
+    const map = new kakao.maps.Map(document.getElementById('map'),
+      { center: new kakao.maps.LatLng(ctr[0], ctr[1]), level: 2 });
+    const b = new kakao.maps.LatLngBounds();
+    allLat.forEach((la, i) => b.extend(new kakao.maps.LatLng(la, allLng[i])));
+    map.setBounds(b);
+
+    // Polylines: full path dim, then selected window thick
+    const lineFull = {};
+    const lineSel = {};
+    ['bag1','bag2'].forEach(k => {
+      const color = k === 'bag1' ? '#ff7b72' : '#58a6ff';
+      const path = raw[k].data.lat.map((la, i) => new kakao.maps.LatLng(la, raw[k].data.lon[i]));
+      lineFull[k] = new kakao.maps.Polyline({ map, path, strokeColor: color,
+        strokeWeight: 2, strokeOpacity: 0.35 });
+      lineSel[k]  = new kakao.maps.Polyline({ map, path: [], strokeColor: color,
+        strokeWeight: 5, strokeOpacity: 0.95 });
+    });
+
+    // Road setup overlays — one set per road
+    const roadOverlays = [];   // [{road, laneR, laneL, markers: []}]
+    function ensureOverlay(idx) {
+      while (roadOverlays.length <= idx) {
+        roadOverlays.push({
+          road: new kakao.maps.Polyline({ map, path: [],
+            strokeColor: '#ffd700', strokeWeight: 3, strokeOpacity: 0.85 }),
+          laneR: new kakao.maps.Polyline({ map, path: [],
+            strokeColor: '#58a6ff', strokeWeight: 3,
+            strokeStyle: 'longdash', strokeOpacity: 0.9 }),
+          laneL: new kakao.maps.Polyline({ map, path: [],
+            strokeColor: '#ff7b72', strokeWeight: 3,
+            strokeStyle: 'longdash', strokeOpacity: 0.9 }),
+          markers: [],
+        });
+      }
+      return roadOverlays[idx];
+    }
+    ensureOverlay(0);
+
+    // Coordinate utilities (local meters via small-area equirectangular)
+    function llToLocal(ll, ref) {
+      const cosLat = Math.cos(ref[0] * Math.PI / 180);
+      return [(ll[1] - ref[1]) * 111320 * cosLat, (ll[0] - ref[0]) * 111320];
+    }
+    function localToLL(en, ref) {
+      const cosLat = Math.cos(ref[0] * Math.PI / 180);
+      return [ref[0] + en[1] / 111320, ref[1] + en[0] / (111320 * cosLat)];
+    }
+
+    document.getElementById('btn-sat').addEventListener('click', e => {
+      satMode = !satMode;
+      map.setMapTypeId(satMode ? kakao.maps.MapTypeId.HYBRID : kakao.maps.MapTypeId.ROADMAP);
+      e.target.classList.toggle('active', satMode);
+    });
+
+    function setPickMode(on) {
+      pickMode = on;
+      const btn = document.getElementById('btn-pick');
+      btn.classList.toggle('active', on);
+      btn.textContent = on ? '✓ Done' : '📍 Pick points';
+      document.getElementById('map').style.cursor = on ? 'crosshair' : '';
+      refreshStatus();
+    }
+
+    function totalPoints() {
+      return roadSetup.roads.reduce((s, r) => s + r.points.length, 0);
+    }
+
+    function refreshStatus() {
+      const el = document.getElementById('road-status');
+      const total = totalPoints();
+      const nRoads = roadSetup.roads.filter(r => r.points.length >= 2).length;
+      const active = roadSetup.active;
+      const activePts = roadSetup.roads[active]?.points.length || 0;
+      if (pickMode) {
+        el.textContent =
+          `pick mode · current road has ${activePts} point${activePts===1?'':'s'} · ` +
+          `${nRoads} road${nRoads===1?'':'s'} drawn · click to add, ✓ Done to finish`;
+      } else if (total === 0) {
+        el.textContent = 'no road points set';
+      } else {
+        el.textContent = `${nRoads} road${nRoads===1?'':'s'} · ${total} points`;
+      }
+    }
+
+    function findMarker(marker) {
+      for (let ri = 0; ri < roadOverlays.length; ri++) {
+        const idx = roadOverlays[ri].markers.indexOf(marker);
+        if (idx >= 0) return { ri, idx };
+      }
+      return null;
+    }
+
+    function attachMarkerHandlers(marker) {
+      kakao.maps.event.addListener(marker, 'dragend', () => {
+        const loc = findMarker(marker); if (!loc) return;
+        const p = marker.getPosition();
+        roadSetup.roads[loc.ri].points[loc.idx] = [p.getLat(), p.getLng()];
+        updateRoad();
+      });
+      kakao.maps.event.addListener(marker, 'rightclick', () => {
+        const loc = findMarker(marker); if (!loc) return;
+        roadSetup.roads[loc.ri].points.splice(loc.idx, 1);
+        roadOverlays[loc.ri].markers.splice(loc.idx, 1);
+        marker.setMap(null);
+        updateRoad();
+        refreshStatus();
+      });
+    }
+
+    function addRoadPoint(latLng) {
+      const ov = ensureOverlay(roadSetup.active);
+      roadSetup.roads[roadSetup.active].points.push([latLng.getLat(), latLng.getLng()]);
+      const m = new kakao.maps.Marker({
+        map, position: latLng, draggable: true,
+        title: `Road ${roadSetup.active + 1} · pt ${ov.markers.length + 1}`,
+      });
+      ov.markers.push(m);
+      attachMarkerHandlers(m);
+    }
+
+    document.getElementById('btn-pick').addEventListener('click', () => {
+      if (pickMode) {
+        setPickMode(false);
+        updateRoad();
+      } else {
+        setPickMode(true);
+      }
+    });
+
+    document.getElementById('btn-newroad').addEventListener('click', () => {
+      // Finalize current and start a new road
+      const cur = roadSetup.roads[roadSetup.active];
+      if (cur.points.length === 0 && roadSetup.active === roadSetup.roads.length - 1) {
+        // already on an empty fresh road, nothing to do
+        if (!pickMode) setPickMode(true);
+        return;
+      }
+      // Prune any empty roads at the end (shouldn't happen, but be safe)
+      while (roadSetup.roads.length && roadSetup.roads[roadSetup.roads.length - 1].points.length === 0) {
+        const lastIdx = roadSetup.roads.length - 1;
+        if (lastIdx === 0) break;
+        roadSetup.roads.pop();
+        const ov = roadOverlays.pop();
+        if (ov) { ov.road.setMap(null); ov.laneR.setMap(null); ov.laneL.setMap(null); }
+      }
+      roadSetup.roads.push({ points: [] });
+      roadSetup.active = roadSetup.roads.length - 1;
+      ensureOverlay(roadSetup.active);
+      setPickMode(true);
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      roadOverlays.forEach(o => {
+        o.markers.forEach(m => m.setMap(null));
+        o.road.setMap(null); o.laneR.setMap(null); o.laneL.setMap(null);
+      });
+      roadOverlays.length = 0;
+      roadSetup.roads = [{ points: [] }];
+      roadSetup.active = 0;
+      ensureOverlay(0);
+      document.getElementById('bias-status').textContent = 'bias = (0, 0)';
+      document.getElementById('in-dx').value = 0;
+      document.getElementById('in-dy').value = 0;
+      roadSetup.bias_m = { dx_east: 0, dy_north: 0 };
+      setPickMode(false);
+      refreshStatus();
+    });
+
+    kakao.maps.event.addListener(map, 'click', (e) => {
+      if (!pickMode) return;
+      addRoadPoint(e.latLng);
+      updateRoad();
+      refreshStatus();
+    });
+
+    document.getElementById('in-lw').addEventListener('input', e => {
+      roadSetup.lane_width_m = parseFloat(e.target.value) || 3.5;
+      updateRoad();
+    });
+    document.getElementById('in-dx').addEventListener('input', e => {
+      roadSetup.bias_m.dx_east = parseFloat(e.target.value) || 0;
+    });
+    document.getElementById('in-dy').addEventListener('input', e => {
+      roadSetup.bias_m.dy_north = parseFloat(e.target.value) || 0;
+    });
+
+    function buildLaneForRoad(pts, half) {
+      // Returns { rightLL, leftLL, totalLen } given centerline points (lat/lng).
+      if (pts.length < 2) return null;
+      const ref = pts[0];
+      const local = pts.map(p => llToLocal(p, ref));
+      const segR = [];
+      let totalLen = 0;
+      for (let i = 0; i < local.length - 1; i++) {
+        const dx = local[i+1][0] - local[i][0];
+        const dy = local[i+1][1] - local[i][1];
+        const L = Math.hypot(dx, dy);
+        totalLen += L;
+        const u = [dx/L, dy/L];
+        segR.push([u[1], -u[0]]);
+      }
+      const vR = [];
+      for (let i = 0; i < local.length; i++) {
+        let r;
+        if (i === 0) r = segR[0];
+        else if (i === local.length - 1) r = segR[segR.length - 1];
+        else {
+          const a = segR[i-1], b = segR[i];
+          const bx = a[0]+b[0], by = a[1]+b[1];
+          const bn = Math.hypot(bx, by) || 1;
+          const dir = [bx/bn, by/bn];
+          const cos = a[0]*dir[0] + a[1]*dir[1];
+          const scale = Math.abs(cos) < 0.2 ? 5 : 1/cos;
+          r = [dir[0]*scale, dir[1]*scale];
+        }
+        vR.push(r);
+      }
+      const rightLocal = local.map((p, i) => [p[0] + half*vR[i][0], p[1] + half*vR[i][1]]);
+      const leftLocal  = local.map((p, i) => [p[0] - half*vR[i][0], p[1] - half*vR[i][1]]);
+      return {
+        rightLL: rightLocal.map(p => localToLL(p, ref)),
+        leftLL:  leftLocal .map(p => localToLL(p, ref)),
+        totalLen,
+      };
+    }
+
+    function updateRoad() {
+      const half = roadSetup.lane_width_m / 2;
+      roadSetup.roads.forEach((road, ri) => {
+        const ov = ensureOverlay(ri);
+        if (road.points.length < 2) {
+          ov.road.setPath([]); ov.laneR.setPath([]); ov.laneL.setPath([]);
+          return;
+        }
+        const built = buildLaneForRoad(road.points, half);
+        if (!built) return;
+        ov.road.setPath(road.points.map(p => new kakao.maps.LatLng(p[0], p[1])));
+        ov.laneR.setPath(built.rightLL.map(p => new kakao.maps.LatLng(p[0], p[1])));
+        ov.laneL.setPath(built.leftLL .map(p => new kakao.maps.LatLng(p[0], p[1])));
+      });
+      refreshStatus();
+    }
+
+    function nearestOnPolyline(p, polyline) {
+      let minD2 = Infinity;
+      let nearest = null;
+      for (let i = 0; i < polyline.length - 1; i++) {
+        const a = polyline[i], b = polyline[i+1];
+        const abx = b[0]-a[0], aby = b[1]-a[1];
+        const ab2 = abx*abx + aby*aby || 1e-9;
+        const apx = p[0]-a[0], apy = p[1]-a[1];
+        const t = Math.max(0, Math.min(1, (apx*abx + apy*aby) / ab2));
+        const cx = a[0] + t*abx, cy = a[1] + t*aby;
+        const d2 = (p[0]-cx)**2 + (p[1]-cy)**2;
+        if (d2 < minD2) { minD2 = d2; nearest = [cx, cy]; }
+      }
+      return nearest;
+    }
+
+    // ---- per-trip setup ----
+    for (const k of ['bag1', 'bag2']) {
+      const trip = raw[k];
+      const d = trip.duration_s;
+      // Default trim = full range; user adjusts. The pipeline auto-detects if both are null.
+      state[k].trim = { start_s: 0, end_s: d };
+
+      // Configure sliders
+      ['start', 'end'].forEach(edge => {
+        const inp = document.querySelector(`input[data-trip=${k}][data-edge=${edge}]`);
+        inp.min = 0; inp.max = d; inp.step = 0.1;
+        const initVal = edge === 'start' ? 0 : d;
+        inp.value = initVal;
+        document.querySelector(`[data-val="${k}-${edge}"]`).textContent = initVal.toFixed(1) + 's';
+        inp.addEventListener('input', () => {
+          const v = parseFloat(inp.value);
+          state[k].trim[edge + '_s'] = v;
+          document.querySelector(`[data-val="${k}-${edge}"]`).textContent = v.toFixed(1) + 's';
+          // enforce start < end
+          if (edge === 'start') {
+            const eEnd = document.querySelector(`input[data-trip=${k}][data-edge=end]`);
+            if (parseFloat(eEnd.value) < v + 0.5) {
+              eEnd.value = Math.min(d, v + 0.5);
+              eEnd.dispatchEvent(new Event('input'));
+            }
+          } else {
+            const eSt = document.querySelector(`input[data-trip=${k}][data-edge=start]`);
+            if (parseFloat(eSt.value) > v - 0.5) {
+              eSt.value = Math.max(0, v - 0.5);
+              eSt.dispatchEvent(new Event('input'));
+            }
+          }
+          drawPlot(k); updateMapSel(k);
+        });
+      });
+      document.getElementById(`meta-${k}`).textContent =
+        `duration ${d.toFixed(1)}s · auto turnaround at ${trip.auto.turnaround_t.toFixed(1)}s · ` +
+        `${trip.data.t.length} samples`;
+      drawPlot(k);
+      updateMapSel(k);
+      renderOverrides(k);
+    }
+
+    function updateMapSel(k) {
+      const { start_s, end_s } = state[k].trim;
+      const trip = raw[k];
+      const t = trip.data.t;
+      const path = [];
+      for (let i = 0; i < t.length; i++) {
+        if (t[i] >= start_s && t[i] <= end_s) {
+          path.push(new kakao.maps.LatLng(trip.data.lat[i], trip.data.lon[i]));
+        }
+      }
+      lineSel[k].setPath(path);
+    }
+
+    // ---- plot ----
+    function drawPlot(k) {
+      const canvas = document.querySelector(`canvas[data-trip=${k}]`);
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
+      canvas.width = cssW * dpr; canvas.height = cssH * dpr;
+      ctx.scale(dpr, dpr);
+
+      const trip = raw[k];
+      const t = trip.data.t, sp = trip.data.speed;
+      const tMin = 0, tMax = trip.duration_s;
+      const spMax = Math.max(1.0, Math.max(...sp));
+      const PAD_L = 24, PAD_R = 8, PAD_T = 6, PAD_B = 14;
+      const W = cssW - PAD_L - PAD_R, H = cssH - PAD_T - PAD_B;
+      const xt = t => PAD_L + (t - tMin) / (tMax - tMin) * W;
+      const yv = v => PAD_T + (1 - v / spMax) * H;
+
+      ctx.clearRect(0, 0, cssW, cssH);
+
+      // trim window background
+      const { start_s, end_s } = state[k].trim;
+      ctx.fillStyle = 'rgba(63,185,80,0.16)';
+      ctx.fillRect(xt(start_s), PAD_T, xt(end_s) - xt(start_s), H);
+
+      // lane overrides shading
+      for (const ov of state[k].overrides) {
+        if (!isFinite(ov.start_s) || !isFinite(ov.end_s)) continue;
+        ctx.fillStyle = ov.lane === 'R' ? 'rgba(88,166,255,0.35)' : 'rgba(255,123,114,0.35)';
+        ctx.fillRect(xt(ov.start_s), PAD_T, xt(ov.end_s) - xt(ov.start_s), H);
+      }
+
+      // auto turnaround marker
+      ctx.strokeStyle = '#f0883e'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      const xa = xt(trip.auto.turnaround_t);
+      ctx.beginPath(); ctx.moveTo(xa, PAD_T); ctx.lineTo(xa, PAD_T + H); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // speed line
+      ctx.strokeStyle = k === 'bag1' ? '#ff7b72' : '#58a6ff';
+      ctx.lineWidth = 1.6; ctx.beginPath();
+      for (let i = 0; i < t.length; i++) {
+        const x = xt(t[i]), y = yv(sp[i]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // axis labels
+      ctx.fillStyle = '#8b949e'; ctx.font = '10px ui-monospace,monospace';
+      ctx.fillText('0', PAD_L - 8, PAD_T + H + 11);
+      ctx.fillText(tMax.toFixed(0) + 's', cssW - PAD_R - 18, PAD_T + H + 11);
+      ctx.fillText(spMax.toFixed(1), 2, PAD_T + 9);
+      ctx.fillText('m/s', 2, PAD_T + H);
+    }
+
+    // ---- lane overrides ----
+    function renderOverrides(k) {
+      const list = document.querySelector(`[data-ov-list=${k}]`);
+      list.innerHTML = '';
+      state[k].overrides.forEach((ov, i) => {
+        const row = document.createElement('div');
+        row.className = 'ov-row';
+        row.innerHTML = `
+          <input type="number" step="0.1" value="${ov.start_s.toFixed(1)}" data-i="${i}" data-f="start_s" />
+          <input type="number" step="0.1" value="${ov.end_s.toFixed(1)}" data-i="${i}" data-f="end_s" />
+          <select data-i="${i}" data-f="lane">
+            <option value="R" ${ov.lane==='R'?'selected':''}>→ R</option>
+            <option value="L" ${ov.lane==='L'?'selected':''}>→ L</option>
+          </select>
+          <button class="del" data-del="${i}">×</button>
+        `;
+        list.appendChild(row);
+      });
+      list.querySelectorAll('input, select').forEach(el => {
+        el.addEventListener('input', e => {
+          const i = parseInt(e.target.dataset.i, 10);
+          const f = e.target.dataset.f;
+          let v = e.target.value;
+          if (f !== 'lane') v = parseFloat(v);
+          state[k].overrides[i][f] = v;
+          drawPlot(k);
+        });
+      });
+      list.querySelectorAll('button.del').forEach(b => {
+        b.addEventListener('click', e => {
+          const i = parseInt(e.target.dataset.del, 10);
+          state[k].overrides.splice(i, 1);
+          renderOverrides(k); drawPlot(k);
+        });
+      });
+    }
+
+    document.querySelectorAll('button[data-add]').forEach(b => {
+      b.addEventListener('click', () => {
+        const k = b.dataset.add;
+        const mid = state[k].trim.start_s + (state[k].trim.end_s - state[k].trim.start_s) / 2;
+        state[k].overrides.push({ start_s: Math.max(0, mid - 2), end_s: mid + 2, lane: 'L' });
+        renderOverrides(k); drawPlot(k);
+      });
+    });
+
+    // ---- save / show ----
+    function buildEditJson() {
+      const out = {};
+      const validRoads = roadSetup.roads
+        .filter(r => r.points.length >= 2)
+        .map(r => ({ centerline_latlng: r.points }));
+      if (validRoads.length > 0) {
+        out.road_setup = {
+          roads: validRoads,
+          lane_width_m: roadSetup.lane_width_m,
+          bias_m: {
+            dx_east: +roadSetup.bias_m.dx_east.toFixed(3),
+            dy_north: +roadSetup.bias_m.dy_north.toFixed(3),
+          },
+        };
+      }
+      for (const k of ['bag1', 'bag2']) {
+        const obj = {};
+        const trip = raw[k];
+        const trim = state[k].trim;
+        // Only include trim if user moved sliders from full-duration default
+        if (!(trim.start_s === 0 && Math.abs(trim.end_s - trip.duration_s) < 0.05)) {
+          obj.trim = { start_s: +trim.start_s.toFixed(2), end_s: +trim.end_s.toFixed(2) };
+        }
+        if (state[k].overrides.length) {
+          obj.lane_overrides = state[k].overrides.map(o => ({
+            start_s: +parseFloat(o.start_s).toFixed(2),
+            end_s: +parseFloat(o.end_s).toFixed(2),
+            lane: o.lane,
+          }));
+        }
+        if (Object.keys(obj).length) out[k] = obj;
+      }
+      return out;
+    }
+
+    document.getElementById('btn-save').addEventListener('click', () => {
+      const txt = JSON.stringify(buildEditJson(), null, 2);
+      const blob = new Blob([txt], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const sid = window.__site?.id;
+      a.href = url;
+      a.download = sid ? `final-${sid}.json` : 'final.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      if (sid && sid !== 'ochang') {
+        const dest = sid === 'cbnu' ? 'data/sites/cbnu/final.json' : `data/sites/${sid}/final.json`;
+        alert(`저장 후 → ${dest} 위치에 두고\npython3 pipeline.py --site ${sid} 재실행`);
+      }
+    });
+    document.getElementById('btn-show').addEventListener('click', () => {
+      document.getElementById('json-text').value = JSON.stringify(buildEditJson(), null, 2);
+      document.getElementById('json-modal').classList.add('on');
+    });
+    document.getElementById('btn-copy').addEventListener('click', async () => {
+      const txt = JSON.stringify(buildEditJson(), null, 2);
+      try { await navigator.clipboard.writeText(txt); alert('Copied edit.json to clipboard'); }
+      catch { alert('Copy failed — use Show JSON instead'); }
+    });
+    document.getElementById('json-close').addEventListener('click', () =>
+      document.getElementById('json-modal').classList.remove('on'));
+    document.getElementById('json-copy').addEventListener('click', async () => {
+      const ta = document.getElementById('json-text');
+      ta.select();
+      try { await navigator.clipboard.writeText(ta.value); } catch {}
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+# Secrets / local config
+# Local Kakao Map JS key. Copy config.example.js -> config.js after clone.
+config.js
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code local state
+.claude/
+
+# Raw dashcam frames (~700 MB) — not redistributed. The trimmed/cropped
+# output that the demo actually serves lives under web/sites/*/ego_camera/.
+data/sites/*/source/camera/
+
+# Original rosbags are not kept in the tree, but ignore just in case.
+*.bag
+
+# Personal class / presentation notes — not part of the implementation.
+data/README.md
+data/raw_analysis.md
+data/processing_pipeline.md
+data/gps_kf_notes.md
+data/gps_kf_presentation.md
+data/figures_plan.md
+data/slide_outline.md
+data/slide_content_draft.md
+data/figure_metrics.json
+
+# Generated figures — re-buildable by `python3 build_figures.py`.
+data/figures/
