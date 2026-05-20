@@ -1,4 +1,4 @@
-# Emergency Vehicle Same-Lane Warning
+# Emergency Vehicle Warning System
 
 응급차량의 신속한 출동을 위해 응급차량이 자차 **동일 차선 후방**에 있을 때, 경고를 띄워주는 GPS 기반 프로젝트입니다.
 
