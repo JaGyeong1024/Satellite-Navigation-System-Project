@@ -26,6 +26,12 @@ data/sites/*/source/camera/
 # Original rosbags are not kept in the tree, but ignore just in case.
 *.bag
 
+# Analysis / one-shot utility scripts — not needed for the demo runtime.
+src/build_figures.py
+src/web_to_csv.py
+src/migrate_cbnu_to_ublox.py
+src/reference/
+
 # Personal class / presentation notes — not part of the implementation.
 data/README.md
 data/raw_analysis.md

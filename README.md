@@ -77,14 +77,10 @@ bag_extract CSV ──► pipeline.py ──► web/sites/<site>/{frames,lanes,r
 ├── config.example.js        # Kakao JS key 템플릿 (config.js 는 .gitignore)
 ├── start.sh                 # http.server + 브라우저 자동 오픈
 │
-├── pipeline.py              # bag CSV → JSON 단일 진입점 (--site ochang|cbnu)
-├── gps_kf.py                # CV-KF + RTS smoother (standalone 실행 가능)
-├── build_ego_camera.py      # source/camera/ → web/ego_camera/ trim + crop
-├── build_figures.py         # 발표용 분석 figure 일괄 생성
-├── migrate_cbnu_to_ublox.py # cbnu lat/lon CSV → u-blox 포맷 변환 (1회용)
-├── web_to_csv.py            # nav.html 입력 JSON → 분석용 CSV flatten
-│
-├── reference/               # 보조 분석 스크립트 (검증/요약)
+├── src/
+│   ├── pipeline.py          # bag CSV → JSON 단일 진입점 (--site ochang|cbnu)
+│   ├── gps_kf.py            # CV-KF + RTS smoother (standalone 실행 가능)
+│   └── build_ego_camera.py  # source/camera/ → web/ego_camera/ trim + crop
 │
 ├── data/
 │   └── sites/
@@ -116,15 +112,12 @@ bag_extract CSV ──► pipeline.py ──► web/sites/<site>/{frames,lanes,r
 ## Reproducing the pipeline
 
 ```bash
-# 사이트 단위로 처리 (lanes.json + frames.json 갱신)
-python3 pipeline.py --site ochang
-python3 pipeline.py --site cbnu
+# 사이트 단위로 처리 (lanes.json + frames.json 갱신) — 프로젝트 root 에서 실행
+python3 src/pipeline.py --site ochang
+python3 src/pipeline.py --site cbnu
 
-# ego 카메라 패널 갱신 (오창만 source 보유)
-python3 build_ego_camera.py --site ochang
-
-# 분석 figure 일괄 빌드 (data/figures/ 에 PNG 출력)
-python3 build_figures.py
+# ego 카메라 패널 갱신 (원본 dashcam 이 있을 때만 — git 제외분)
+python3 src/build_ego_camera.py --site ochang
 ```
 
 `final.json` 의 bias 와 trim 값은 위성 영상을 보면서 `editor.html` 에서 시각적으로 맞춘 값입니다.
