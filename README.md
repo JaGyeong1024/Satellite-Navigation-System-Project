@@ -68,47 +68,6 @@ bag_extract CSV ──► pipeline.py ──► web/sites/<site>/{frames,lanes,r
 
 ---
 
-## Repository layout
-
-```
-.
-├── nav.html                 # 데모 (재생/슬라이더/차량 마커/판정 박스)
-├── editor.html              # centerline / lane / bias 를 위성 영상 위에서 편집
-├── config.example.js        # Kakao JS key 템플릿 (config.js 는 .gitignore)
-├── start.sh                 # http.server + 브라우저 자동 오픈
-│
-├── src/
-│   ├── pipeline.py          # bag CSV → JSON 단일 진입점 (--site ochang|cbnu)
-│   ├── gps_kf.py            # CV-KF + RTS smoother (standalone 실행 가능)
-│   └── build_ego_camera.py  # source/camera/ → web/ego_camera/ trim + crop
-│
-├── data/
-│   └── sites/
-│       ├── ochang/
-│       │   ├── final.json           # manual road geometry + bias + trim
-│       │   └── source/
-│       │       ├── gps1_extracted/  # emergency vehicle u-blox CSV
-│       │       ├── gps2_extracted/  # ego vehicle u-blox CSV
-│       │       └── camera/          # git 제외 (원본 dashcam ~700 MB)
-│       └── cbnu/
-│           ├── final.json
-│           └── source/lane{1,2}_extracted/
-│
-└── web/
-    ├── sites.json
-    └── sites/
-        ├── ochang/{frames,lanes,raw_trips,final_*,ego_camera_index}.json/csv
-        │   └── ego_camera/*.jpg     # 데모 영상 패널 (trim + crop 결과)
-        └── cbnu/{frames,lanes,...}.json/csv
-```
-
-### 데이터 정책
-
-- **포함**: u-blox extract CSV, `final.json`(manual 라벨), pipeline 출력 JSON, ego_camera trim 출력.
-- **제외 (`.gitignore`)**: source dashcam JPG 원본(`data/sites/*/source/camera/`), 발표/수업 노트(`data/*.md`), 생성형 figure(`data/figures/`).
-
----
-
 ## Reproducing the pipeline
 
 ```bash
