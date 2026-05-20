@@ -1,6 +1,7 @@
 # Emergency Vehicle Same-Lane Warning
 
 응급차량의 신속한 출동을 위해 응급차량이 자차 **동일 차선 후방**에 있을 때, 경고를 띄워주는 GPS 기반 프로젝트입니다.
+
 브라우저(Kakao Map) 위에 두 차량의 궤적 / 차선 / 전방 판정 영역을 실시간 재생합니다.
 
 두 개의 데이터셋이 포함되어 있습니다.
@@ -98,4 +99,4 @@ python3 src/build_ego_camera.py --site ochang
 
 ## Acknowledgments
 
-충북대학교 위성항법시스템 수업 프로젝트로 시작했으며, 자율주행팀 (`Clothoid-R`) 의 u-blox ZED-F9P + NTRIP setup 을 활용했습니다.
+충북대학교 위성항법시스템 수업 프로젝트로 시작했으며, u-blox ZED-F9P + NTRIP setup을 활용했습니다.
