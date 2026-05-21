@@ -395,6 +395,45 @@
       zIndex: 8,
     });
 
+    // Trail — past-trajectory polyline from start to current frame for each
+    // vehicle. Pre-builds the full LatLng list once, then slices + appends
+    // a lerped tip per render() so the trail end snaps to the marker exactly.
+    class Trail {
+      constructor(map, framesArr, vehicleKey, color, opts = {}) {
+        this._frames = framesArr;
+        this._key = vehicleKey;
+        this._all = framesArr.map(f => {
+          const v = f[vehicleKey];
+          return new kakao.maps.LatLng(v.lat, v.lon);
+        });
+        this._line = new kakao.maps.Polyline({
+          map,
+          path: [],
+          strokeColor: color,
+          strokeWeight: opts.weight ?? 3,
+          strokeOpacity: opts.opacity ?? 0.85,
+          strokeStyle: 'solid',
+          zIndex: opts.zIndex ?? 9,
+        });
+      }
+      update(idxFloat) {
+        const i0 = Math.floor(idxFloat);
+        const u = idxFloat - i0;
+        const path = this._all.slice(0, i0 + 1);
+        if (u > 0 && i0 < this._frames.length - 1) {
+          const v0 = this._frames[i0][this._key];
+          const v1 = this._frames[i0 + 1][this._key];
+          path.push(new kakao.maps.LatLng(
+            v0.lat + u * (v1.lat - v0.lat),
+            v0.lon + u * (v1.lon - v0.lon),
+          ));
+        }
+        this._line.setPath(path);
+      }
+    }
+    const egoTrail  = new Trail(map, frames, 'ego',       '#3fb950');
+    const emerTrail = new Trail(map, frames, 'emergency', '#f85149');
+
     // Ego + emergency custom overlays
     function makeMarkerOverlay(cls) {
       const el = document.createElement('div');
@@ -489,6 +528,9 @@
       emergFuture.setPath((f.emerg_future_band_latlng || [])
         .map(p => new kakao.maps.LatLng(p[0], p[1])));
 
+      // Past trajectory trails — grow with playback, shrink when scrubbing back.
+      egoTrail.update(idxFloat);
+      emerTrail.update(idxFloat);
 
       // Connector (uses the same interpolated positions as markers).
       connector.setPath([
