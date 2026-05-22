@@ -5,7 +5,14 @@
 브라우저(Kakao Map) 위에 두 차량의 궤적 / 차선 / 전방 판정 영역을 실시간 재생합니다.
 
 ### 시현 영상
-https://github.com/user-attachments/assets/dd05fa46-7353-4b42-8c91-8b9af7d5d521
+
+<table>
+<tr>
+<td align="center">
+  <video src="https://github.com/user-attachments/assets/2525e61b-6bb4-47dc-ae84-fd577072576e";>
+</td>
+</tr>
+</table>
 
 ### 데이터셋
 두 개의 데이터셋이 포함되어 있습니다.
